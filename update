@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# updates via yay and flatpak with flags
+# version 2.beta
+
+# shellcheck source=/dev/null
+source ~/.config/update/update.conf
+
+IGreen="\033[0;92m"        # Green
+NC="\033[0m"               # Text Reset
+
+# output if wrong flag is used
+Help() {
+   echo "updates via yay and flatpak with flags"
+   echo
+   echo "Usage: update [OPTION]"
+   echo
+   echo "options:"
+   echo "no flag    same as -a"
+   echo "f          updates using flatpak update only"
+   echo "y          updates using yay only"
+   echo "a          updates using flatpak update and yay"
+   echo "g          shutdowns the computer afterwards (needs to be the last or only option to work properly)"
+   echo "r          reboots the computer afterwards (needs to be the last or only option to work properly)"
+}
+
+# creates package lists, moves them into a zip, adds some other files to the zip and backups the pacman database in the form of a tar
+# it then rsyncs the zip and the tar to the backup location which is specified in the config
+before_backup() {
+	paclog-pkglist > ~/pacman-pre.txt
+    flatpak list > ~/flatpak-pre.txt
+    zip --quiet --move ~/before_backup.zip ~/pacman-pre.txt ~/flatpak-pre.txt
+    zip --quiet --grow ~/before_backup.zip /etc/fstab /etc/makepkg.conf
+    tar -cJf ~/pacman_database.tar.xz /var/lib/pacman/local &> /dev/null
+    rsync --remove-source-files ~/before_backup.zip ~/pacman_database.tar.xz "$backup_location"
+}
+
+# moves the package lists into a zip, it then rsyncs the zip to the backup location which is specified in the config
+after_backup() {
+    zip --quiet --move ~/after_backup.zip ~/pacman-after.txt ~/flatpak-after.txt
+    rsync --remove-source-files ~/after_backup.zip "$backup_location"
+}
+
+# updates using yay
+update_with_yay() {
+	yay
+    paclog-pkglist > ~/pacman-after.txt
+}
+
+# updates using flatpak update
+update_with_flatpak() {
+	flatpak update --system --user
+    flatpak list > ~/flatpak-after.txt
+}
+
+before_backup && echo -e "${IGreen} pre-backup complete ${NC}"
+
+[[ -z $1 ]] && update_with_yay && update_with_flatpak;
+while getopts 'fyagr' OPTION; do
+    case "$OPTION" in
+        f)
+            update_with_flatpak ;;
+        y)
+            update_with_yay ;;
+        a)
+            update_with_yay
+            update_with_flatpak ;;
+        g)
+            [[ $1 = -g ]] && update_with_yay && update_with_flatpak;
+            after_backup && echo -e "${IGreen} after-backup complete ${NC}"
+            sleep 15s
+            shutdown now ;;
+        r)
+            [[ $1 = -r ]] && update_with_yay && update_with_flatpak;
+            after_backup && echo -e "${IGreen} after-backup complete ${NC}"
+            sleep 5s
+            reboot ;;
+        ?)
+            Help
+            exit 1;;
+    esac
+done
+
+after_backup && echo -e "${IGreen} after-backup complete ${NC}"
