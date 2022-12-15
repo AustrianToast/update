@@ -1,25 +1,42 @@
 #!/bin/bash
-
-# updates via yay and flatpak with flags
-# version 2.beta
-
 # shellcheck source=/dev/null
-source ~/.config/update/update.conf
+
+# updates via an aur-helper and flatpak with flags
+# version 0.3
+
+# add options to change aur-helper in the config
+# maybe make a first time setup, which asks for backup_location and aur_helper, maybe even if you wanna opt-in to non-interactive flatpak-update (maybe a flag?)
+
 
 IGreen="\033[0;92m"        # Green
 NC="\033[0m"               # Text Reset
 
+# check if config exists, if not, then a config with default values will be created
+if [ -f ~/.config/update/update.conf ]; then
+    source ~/.config/update/update.conf;
+else
+    echo "# Backup to this folder
+backup_location=~/
+
+# use this aur-helper
+aur_helper=yay
+
+# if you should backup or not
+# should stay true unless you know what you're doing 
+should_backup=true" > ~/.config/update/update.conf && echo -e "${IGreen} created config file ${NC}"
+fi
+
 # output if wrong flag is used
 Help() {
-   echo "updates via yay and flatpak with flags"
+   echo "updates via an aur-helper and flatpak with flags"
    echo
    echo "Usage: update [OPTION]"
    echo
    echo "options:"
    echo "no flag    same as -a"
    echo "f          updates using flatpak update only"
-   echo "y          updates using yay only"
-   echo "a          updates using flatpak update and yay"
+   echo "y          updates using an aur-helper only"
+   echo "a          updates using flatpak update and an aur-helper"
    echo "g          shutdowns the computer afterwards (needs to be the last or only option to work properly)"
    echo "r          reboots the computer afterwards (needs to be the last or only option to work properly)"
 }
@@ -41,37 +58,38 @@ after_backup() {
     rsync --remove-source-files ~/after_backup.zip "$backup_location"
 }
 
-# updates using yay
-update_with_yay() {
-	yay
+# aur-helper needs to be added to the config, which should be in /home/*/.config/update/update.conf
+# updates using aur-helper
+update_with_aur_helper() {
+	"$aur_helper"
     paclog-pkglist > ~/pacman-after.txt
 }
 
 # updates using flatpak update
 update_with_flatpak() {
-	flatpak update --system --user
+	flatpak update -uy --noninteractive
     flatpak list > ~/flatpak-after.txt
 }
 
-before_backup && echo -e "${IGreen} pre-backup complete ${NC}"
+[[ "$should_backup" = true ]] && before_backup && echo -e "${IGreen} pre-backup complete ${NC}"
 
-[[ -z $1 ]] && update_with_yay && update_with_flatpak;
+[[ -z $1 ]] && update_with_aur_helper && update_with_flatpak;
 while getopts 'fyagr' OPTION; do
     case "$OPTION" in
         f)
             update_with_flatpak ;;
         y)
-            update_with_yay ;;
+            update_with_aur_helper ;;
         a)
-            update_with_yay
+            update_with_aur_helper
             update_with_flatpak ;;
         g)
-            [[ $1 = -g ]] && update_with_yay && update_with_flatpak;
+            [[ $1 = -g ]] && update_with_aur_helper && update_with_flatpak;
             after_backup && echo -e "${IGreen} after-backup complete ${NC}"
             sleep 15s
             shutdown now ;;
         r)
-            [[ $1 = -r ]] && update_with_yay && update_with_flatpak;
+            [[ $1 = -r ]] && update_with_aur_helper && update_with_flatpak;
             after_backup && echo -e "${IGreen} after-backup complete ${NC}"
             sleep 5s
             reboot ;;
@@ -81,4 +99,4 @@ while getopts 'fyagr' OPTION; do
     esac
 done
 
-after_backup && echo -e "${IGreen} after-backup complete ${NC}"
+[[ "$should_backup" = true ]] && after_backup && echo -e "${IGreen} after-backup complete ${NC}"
