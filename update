@@ -2,7 +2,7 @@
 # shellcheck source=/dev/null
 
 # updates via an aur-helper and flatpak with flags
-# version 0.4
+# version 0.5
 
 # add options to change aur-helper in the config
 # maybe make a first time setup, which asks for backup_location and aur_helper, maybe even if you wanna opt-in to non-interactive flatpak-update (maybe a flag?)
@@ -11,12 +11,7 @@
 IGreen="\033[0;92m"        # Green
 NC="\033[0m"               # Text Reset
 
-# check if config exists, if not, then a config with default values will be created
-if [ -f ~/.config/update/update.conf ]; then
-    source ~/.config/update/update.conf;
-else
-    cp ~/bin/update_bash/update.conf ~/.config/update/update.conf && echo -e "${IGreen} created config file ${NC}" && source ~/.config/update/update.conf
-fi
+source ~/.config/update.conf
 
 # output if wrong flag is used
 Help() {
@@ -76,10 +71,10 @@ while getopts 'fyagr' OPTION; do
             update_with_aur_helper; update_with_flatpak ;;
         g)
             [[ $1 = -g ]] && update_with_aur_helper && update_with_flatpak;
-            after_backup && echo -e "${IGreen} after-backup complete ${NC}" && sleep 15s && shutdown now ;;
+            after_backup && echo -e "${IGreen} after-backup complete ${NC}" && sleep 3s && shutdown now ;;
         r)
             [[ $1 = -r ]] && update_with_aur_helper && update_with_flatpak;
-            after_backup && echo -e "${IGreen} after-backup complete ${NC}" && sleep 5s && reboot ;;
+            after_backup && echo -e "${IGreen} after-backup complete ${NC}" && sleep 3s && reboot ;;
         ?)
             Help
             exit 1;;
