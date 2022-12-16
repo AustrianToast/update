@@ -2,7 +2,7 @@
 # shellcheck source=/dev/null
 
 # updates via an aur-helper and flatpak with flags
-# version 0.3
+# version 0.4
 
 # add options to change aur-helper in the config
 # maybe make a first time setup, which asks for backup_location and aur_helper, maybe even if you wanna opt-in to non-interactive flatpak-update (maybe a flag?)
@@ -15,15 +15,7 @@ NC="\033[0m"               # Text Reset
 if [ -f ~/.config/update/update.conf ]; then
     source ~/.config/update/update.conf;
 else
-    echo "# Backup to this folder
-backup_location=~/
-
-# use this aur-helper
-aur_helper=yay
-
-# if you should backup or not
-# should stay true unless you know what you're doing 
-should_backup=true" > ~/.config/update/update.conf && echo -e "${IGreen} created config file ${NC}"
+    cp ~/bin/update_bash/update.conf ~/.config/update/update.conf && echo -e "${IGreen} created config file ${NC}" && source ~/.config/update/update.conf
 fi
 
 # output if wrong flag is used
@@ -67,11 +59,11 @@ update_with_aur_helper() {
 
 # updates using flatpak update
 update_with_flatpak() {
-	flatpak update -uy --noninteractive
+	flatpak update -u --noninteractive
     flatpak list > ~/flatpak-after.txt
 }
 
-[[ "$should_backup" = true ]] && before_backup && echo -e "${IGreen} pre-backup complete ${NC}"
+[[ $should_backup ]] && before_backup && echo -e "${IGreen} pre-backup complete ${NC}"
 
 [[ -z $1 ]] && update_with_aur_helper && update_with_flatpak;
 while getopts 'fyagr' OPTION; do
@@ -81,22 +73,17 @@ while getopts 'fyagr' OPTION; do
         y)
             update_with_aur_helper ;;
         a)
-            update_with_aur_helper
-            update_with_flatpak ;;
+            update_with_aur_helper; update_with_flatpak ;;
         g)
             [[ $1 = -g ]] && update_with_aur_helper && update_with_flatpak;
-            after_backup && echo -e "${IGreen} after-backup complete ${NC}"
-            sleep 15s
-            shutdown now ;;
+            after_backup && echo -e "${IGreen} after-backup complete ${NC}" && sleep 15s && shutdown now ;;
         r)
             [[ $1 = -r ]] && update_with_aur_helper && update_with_flatpak;
-            after_backup && echo -e "${IGreen} after-backup complete ${NC}"
-            sleep 5s
-            reboot ;;
+            after_backup && echo -e "${IGreen} after-backup complete ${NC}" && sleep 5s && reboot ;;
         ?)
             Help
             exit 1;;
     esac
 done
 
-[[ "$should_backup" = true ]] && after_backup && echo -e "${IGreen} after-backup complete ${NC}"
+[[ $should_backup ]] && after_backup && echo -e "${IGreen} after-backup complete ${NC}"
