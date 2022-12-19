@@ -1,7 +1,6 @@
 install:
 	@echo "==> Installing update v0.4..."
 	@sudo install -Dm755 update /usr/local/bin/update
-	@echo $${HOME}
 	@cp update.conf $${HOME}/.config/
 	@echo "==> Finished."
 
