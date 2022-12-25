@@ -2,7 +2,7 @@
 # shellcheck source=/dev/null
 
 # updates via an aur-helper and flatpak with flags
-# version 0.6
+# version 0.7
 
 # add options to change aur-helper in the config
 # maybe make a first time setup, which asks for backup_location and aur_helper, maybe even if you wanna opt-in to non-interactive flatpak-update (maybe a flag?)
@@ -33,16 +33,19 @@ Help() {
 before_backup() {
 	paclog-pkglist > ~/pacman-pre.txt
     flatpak list > ~/flatpak-pre.txt
-    zip --quiet --move ~/before_backup.zip ~/pacman-pre.txt ~/flatpak-pre.txt
-    zip --quiet --grow ~/before_backup.zip /etc/fstab /etc/makepkg.conf
-    tar -cJf ~/pacman_database.tar.xz /var/lib/pacman/local &> /dev/null
-    rsync --remove-source-files ~/before_backup.zip ~/pacman_database.tar.xz "$backup_location"
+    zip --quiet --move ~/before_backup.zip.new ~/pacman-pre.txt ~/flatpak-pre.txt
+    zip --quiet --grow ~/before_backup.zip.new /etc/fstab /etc/makepkg.conf
+    tar -cJf ~/pacman_database.tar.xz.new /var/lib/pacman/local &> /dev/null
+    rsync --remove-source-files ~/before_backup.zip.new ~/pacman_database.tar.xz.new "$backup_location"
+    rename before_backup.zip.new before_backup.zip "$backup_location"/before_backup.zip.new 
+    rename pacman_database.tar.xz.new pacman_database.tar.xz "$backup_location"/pacman_database.tar.xz.new
 }
 
 # moves the package lists into a zip, it then rsyncs the zip to the backup location
 after_backup() {
-    zip --quiet --move ~/after_backup.zip ~/pacman-after.txt ~/flatpak-after.txt
-    rsync --remove-source-files ~/after_backup.zip "$backup_location"
+    zip --quiet --move ~/after_backup.zip.new ~/pacman-after.txt ~/flatpak-after.txt
+    rsync --remove-source-files ~/after_backup.zip.new "$backup_location"
+    rename after_backup.zip.new after_backup.zip "$backup_location"/after_backup.zip.new
 }
 
 # updates using aur-helper
@@ -59,7 +62,7 @@ update_with_flatpak() {
 
 before_backup && echo -e "${IGreen} pre-backup complete ${NC}"
 
-[[ $1 ]] || update_with_aur_helper && update_with_flatpak;
+[[ -z $1 ]] && update_with_aur_helper && update_with_flatpak;
 while getopts 'fyagr' OPTION; do
     case "$OPTION" in
         f)
