@@ -2,7 +2,7 @@
 # shellcheck source=/dev/null
 
 # updates via an aur-helper and flatpak with flags
-# version 0.7
+# version 0.8
 
 # add options to change aur-helper in the config
 # maybe make a first time setup, which asks for backup_location and aur_helper, maybe even if you wanna opt-in to non-interactive flatpak-update (maybe a flag?)
@@ -26,6 +26,7 @@ Help() {
    echo "-a				updates using flatpak update and an aur-helper"
    echo "-g				shutdowns the computer afterwards (needs to be the last or only option to work properly)"
    echo "-r				reboots the computer afterwards (needs to be the last or only option to work properly)"
+   echo "--help         shows usage"
 }
 
 # creates package lists, moves them into a zip, adds some other files to the zip and backups the pacman database in the form of a tar
@@ -59,6 +60,8 @@ update_with_flatpak() {
 	flatpak update -u --noninteractive
     flatpak list > ~/flatpak-after.txt
 }
+
+[[ $1 = --help ]] && Help && exit 0;
 
 before_backup && echo -e "${IGreen} pre-backup complete ${NC}"
 
