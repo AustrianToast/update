@@ -1,28 +1,26 @@
 #!/bin/bash
 
 # updates via an aur-helper and flatpak with flags
-# version 1.0
+# version 1.1
 
 IGreen="\033[0;92m"		# Green
 NC="\033[0m"			# Text Reset
 
-dir="$pwd"
+DIR="$(pwd)"
 
-source ~/.config/update.conf
+source "${HOME}"/.config/update.conf
 
 # output if wrong flag is used
 Help() {
-   echo "updates via an aur-helper and flatpak with flags"
-   echo
    echo "Usage: update [OPTION]"
    echo
    echo "options:"
-   echo "no flag		same as -a"
-   echo "-f				updates using flatpak update only"
-   echo "-y				updates using an aur-helper only"
-   echo "-a				updates using flatpak update and an aur-helper"
-   echo "-g				shutdowns the computer afterwards (needs to be the last or only option to work properly)"
-   echo "-r				reboots the computer afterwards (needs to be the last or only option to work properly)"
+   echo "no flag        same as -a"
+   echo "-f             updates using flatpak update only"
+   echo "-y             updates using an aur-helper only"
+   echo "-a             updates using flatpak update and an aur-helper"
+   echo "-g             shutdowns the computer afterwards (needs to be the last or only option to work properly)"
+   echo "-r             reboots the computer afterwards (needs to be the last or only option to work properly)"
 }
 
 # creates package lists, moves them into a zip, adds some other files to the zip and backups the pacman database in the form of a tar
@@ -33,21 +31,21 @@ before_backup() {
     zip --quiet --move before-backup.zip.new pacman-pre.txt flatpak-pre.txt
     zip --quiet --grow before-backup.zip.new /etc/fstab /etc/makepkg.conf
     tar -cJf pacman-database.tar.xz.new /var/lib/pacman/local &> /dev/null
-    rsync --remove-source-files before-backup.zip.new pacman-database.tar.xz.new "$backup_location"
-    rename before-backup.zip.new before-backup.zip "$backup_location"/before-backup.zip.new 
-    rename pacman-database.tar.xz.new pacman-database.tar.xz "$backup_location"/pacman-database.tar.xz.new
+    rsync --remove-source-files before-backup.zip.new pacman-database.tar.xz.new "${backup_location}"
+    rename before-backup.zip.new before-backup.zip "${backup_location}"/before-backup.zip.new 
+    rename pacman-database.tar.xz.new pacman-database.tar.xz "${backup_location}"/pacman-database.tar.xz.new
 }
 
 # moves the package lists into a zip, it then rsyncs the zip to the backup location
 after_backup() {
     zip --quiet --move after-backup.zip.new pacman-after.txt flatpak-after.txt
-    rsync --remove-source-files after-backup.zip.new "$backup_location"
-    rename after-backup.zip.new after-backup.zip "$backup_location"/after-backup.zip.new
+    rsync --remove-source-files after-backup.zip.new "${backup_location}"
+    rename after-backup.zip.new after-backup.zip "${backup_location}"/after-backup.zip.new
 }
 
 # updates using aur-helper
 update_with_aur_helper() {
-	"$aur_helper"
+	"${aur_helper}"
     paclog-pkglist > pacman-after.txt
 }
 
@@ -59,12 +57,17 @@ update_with_flatpak() {
 
 [[ $1 = --help ]] && Help && exit 0;
 
+while [ -f /var/lib/pacman/db.lck ]; do {
+    sleep 1s
+}
+done
+
 [[ ! -d /tmp/backup ]] && mkdir /tmp/backup;
 cd /tmp/backup && before_backup && echo -e "${IGreen} pre-backup complete ${NC}"
 
 [[ -z $1 ]] && update_with_aur_helper && update_with_flatpak;
-while getopts 'fyagr' OPTION; do
-    case "$OPTION" in
+while getopts 'fyagr' OPTIONS; do
+    case "$OPTIONS" in
         f)
             update_with_flatpak ;;
         y)
@@ -73,14 +76,14 @@ while getopts 'fyagr' OPTION; do
             update_with_aur_helper; update_with_flatpak ;;
         g)
             [[ $1 = -g ]] && update_with_aur_helper && update_with_flatpak;
-            after_backup && cd "$dir"; echo -e "${IGreen} after-backup complete ${NC}" && sleep 3s && shutdown now ;;
+            after_backup && cd "${DIR}" || return; echo -e "${IGreen} after-backup complete ${NC}" && sleep 3s && shutdown now ;;
         r)
             [[ $1 = -r ]] && update_with_aur_helper && update_with_flatpak;
-            after_backup && cd "$dir"; echo -e "${IGreen} after-backup complete ${NC}" && sleep 3s && reboot ;;
+            after_backup && cd "${DIR}" || return; echo -e "${IGreen} after-backup complete ${NC}" && sleep 3s && reboot ;;
         ?)
             Help
             exit 1;;
     esac
 done
 
-after_backup && cd "$dir"; rm -r /tmp/backup; echo -e "${IGreen} after-backup complete ${NC}"
+after_backup && cd "${DIR}" || return; rm -r /tmp/backup; echo -e "${IGreen} after-backup complete ${NC}"
