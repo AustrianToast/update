@@ -1,4 +1,4 @@
-VER = "v1.1"
+VER = "v1.2"
 
 install:
 	@echo "==> Installing update $(VER)..."
