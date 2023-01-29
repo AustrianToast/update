@@ -6,7 +6,7 @@ Update script written in bash for Arch. Keeps all your pacman and aur packages a
 Needed dependencies
 
 ```bash
-  pacman -S zip pacutils
+  pacman -S zip
 ```
 ## Installation 
 
