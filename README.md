@@ -26,10 +26,7 @@ no flag        same as -a
 -g             shutdowns the computer afterwards (needs to be the last or only option to work properly)
 -r             reboots the computer afterwards (needs to be the last or only option to work properly)
 ```
-## Roadmap
 
-- Publish to the aur
-- First time setup
 ## Contributing
 
 Contributions are always welcome!
