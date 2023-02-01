@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # updates using a pacman-wrapper and flatpak-update with flags
-# version 1.3
+# version 1.4
 
-IGreen="\033[0;92m"		# Green
+IGREEN="\033[0;92m"		# Intense Green
+IYELLOW="\033[0;93m"       # Intense Red
 NC="\033[0m"			# Text Reset
 TMP="/tmp/backup"
 
@@ -26,9 +27,11 @@ Help() {
 # it then rsyncs the tar to the backup location
 before_backup() {
     [[ ! -d /tmp/backup ]] && mkdir /tmp/backup
-	pacman -Q > "${TMP}"/pacman-pre.txt
+    pacman -Q > "${TMP}"/pacman-pre.txt
     flatpak list > "${TMP}"/flatpak-pre.txt
+    sudo touch /var/lib/pacman/db.lck
     tar -cJf "${TMP}"/before-backup.tar.xz.new "${TMP}"/pacman-pre.txt "${TMP}"/flatpak-pre.txt /var/lib/pacman/local &> /dev/null
+    sudo rm /var/lib/pacman/db.lck
     rsync "${TMP}"/before-backup.tar.xz.new "${backup_location}"
     rename before-backup.tar.xz.new before-backup.tar.xz "${backup_location}"/before-backup.tar.xz.new
 }
@@ -56,11 +59,13 @@ update_with_flatpak() {
 [[ $1 = --help ]] && Help && exit 0;
 
 while [ -f /var/lib/pacman/db.lck ]; do {
-    sleep 1s
+    echo -e "${IYELLOW}->${NC} /var/lib/pacman/db.lck exists"
+    echo -e "${IYELLOW}->${NC} there might be an instance of pacman running. exiting..."
+    exit 1
 }
 done
 
-before_backup && echo -e "${IGreen} pre-backup complete ${NC}"
+before_backup && echo -e "${IGREEN}pre-backup complete${NC}"
 
 [[ -z $1 ]] && update_with_pacman_wrapper && update_with_flatpak;
 while getopts 'fpagr' OPTIONS; do
@@ -73,14 +78,14 @@ while getopts 'fpagr' OPTIONS; do
             update_with_pacman_wrapper; update_with_flatpak ;;
         g)
             [[ $1 = -g ]] && update_with_pacman_wrapper && update_with_flatpak;
-            after_backup && echo -e "${IGreen} after-backup complete ${NC}" && sleep 3s && shutdown now ;;
+            after_backup && echo -e "${IGREEN}after-backup complete${NC}" && sleep 3s && shutdown now ;;
         r)
             [[ $1 = -r ]] && update_with_pacman_wrapper && update_with_flatpak;
-            after_backup && echo -e "${IGreen} after-backup complete ${NC}" && sleep 3s && reboot ;;
+            after_backup && echo -e "${IGREEN}after-backup complete${NC}" && sleep 3s && reboot ;;
         ?)
             Help
             exit 1;;
     esac
 done
 
-after_backup && echo -e "${IGreen} after-backup complete ${NC}"
+after_backup && echo -e "${IGREEN}after-backup complete${NC}"
