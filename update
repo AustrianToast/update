@@ -1,14 +1,16 @@
 #!/bin/bash
 
 # updates using a pacman-wrapper and flatpak-update with flags
-# version 1.4
+# version 1.5
 
-IGREEN="\033[0;92m"		# Intense Green
-IYELLOW="\033[0;93m"       # Intense Red
-NC="\033[0m"			# Text Reset
+source "$HOME"/.config/update.conf
+
+IGREEN="\033[0;92m"     # Intense Green
+IYELLOW="\033[0;93m"    # Intense Red
+NC="\033[0m"            # Text Reset
 TMP="/tmp/backup"
-
-source "${HOME}"/.config/update.conf
+DATE="$(date +%s)"
+PRE_BACKUP_AMOUNT="$(ls -Ub "$BACKUP_LOCATION"/ | grep -c ^before-backup)"
 
 # output if wrong flag is used
 Help() {
@@ -21,46 +23,52 @@ Help() {
    echo "-a             updates using flatpak update and a pacman-wrapper"
    echo "-g             shutdowns the computer afterwards (needs to be the last or only option to work properly)"
    echo "-r             reboots the computer afterwards (needs to be the last or only option to work properly)"
+   echo "--help         displays this message"
+   echo "-P, --preview  shows a preview of which pkg's will be updates"
 }
 
 # creates package lists, moves them into a tar, adds some other files and adds the pacman database
 # it then rsyncs the tar to the backup location
 before_backup() {
+    #if [[ $PRE_BACKUP_AMOUNT > $BACKUP_AMOUNT ]]; then
+    #    echo "yay"
+    #fi
     [[ ! -d /tmp/backup ]] && mkdir /tmp/backup
-    pacman -Q > "${TMP}"/pacman-pre.txt
-    flatpak list > "${TMP}"/flatpak-pre.txt
+    pacman -Q > "$TMP"/pacman-pre.txt
+    flatpak list > "$TMP"/flatpak-pre.txt
     sudo touch /var/lib/pacman/db.lck
-    tar -cJf "${TMP}"/before-backup.tar.xz.new "${TMP}"/pacman-pre.txt "${TMP}"/flatpak-pre.txt /var/lib/pacman/local &> /dev/null
+    tar -cJf "$TMP"/before-backup_"$DATE".tar.xz.new "$TMP"/pacman-pre.txt "$TMP"/flatpak-pre.txt /var/lib/pacman/local &> /dev/null
     sudo rm /var/lib/pacman/db.lck
-    rsync "${TMP}"/before-backup.tar.xz.new "${backup_location}"
-    rename before-backup.tar.xz.new before-backup.tar.xz "${backup_location}"/before-backup.tar.xz.new
+    rsync "$TMP"/before-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
+    rename before-backup_"$DATE".tar.xz.new before-backup_"$DATE".tar.xz "$BACKUP_LOCATION"/before-backup_"$DATE".tar.xz.new
 }
 
 # moves the package lists into a tar, it then rsyncs the tar to the backup location
 after_backup() {
-    tar -cJf "${TMP}"/after-backup.tar.xz.new "${TMP}"/pacman-after.txt "${TMP}"/flatpak-after.txt &> /dev/null
-    rsync "${TMP}"/after-backup.tar.xz.new "${backup_location}"
-    rename after-backup.tar.xz.new after-backup.tar.xz "${backup_location}"/after-backup.tar.xz.new
+    tar -cJf "$TMP"/after-backup_"$DATE".tar.xz.new "$TMP"/pacman-after.txt "$TMP"/flatpak-after.txt &> /dev/null
+    rsync "$TMP"/after-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
+    rename after-backup_"$DATE".tar.xz.new after-backup_"$DATE".tar.xz "$BACKUP_LOCATION"/after-backup_"$DATE".tar.xz.new
     rm -r /tmp/backup
 }
 
 # updates using a pacman-wrapper
 update_with_pacman_wrapper() {
-	"${pacman_wrapper}"
-    pacman -Q > "${TMP}"/pacman-after.txt
+	"$PACMAN_WRAPPER"
+    pacman -Q > "$TMP"/pacman-after.txt
 }
 
 # updates using flatpak-update
 update_with_flatpak() {
 	flatpak update -u --noninteractive
-    flatpak list > "${TMP}"/flatpak-after.txt
+    flatpak list > "$TMP"/flatpak-after.txt
 }
 
-[[ $1 = --help ]] && Help && exit 0;
+[[ $1 = --help ]] && Help && exit 0
+[[ $1 = --preview || $1 = -P ]] && sudo pacman -Sy &> /dev/null && sudo pacman -Qu && exit 0
 
 while [ -f /var/lib/pacman/db.lck ]; do {
     echo -e "${IYELLOW}->${NC} /var/lib/pacman/db.lck exists"
-    echo -e "${IYELLOW}->${NC} there might be an instance of pacman running. exiting..."
+    echo -e "${IYELLOW}->${NC} there might be another instance of pacman running. exiting..."
     exit 1
 }
 done
@@ -78,10 +86,12 @@ while getopts 'fpagr' OPTIONS; do
             update_with_pacman_wrapper; update_with_flatpak ;;
         g)
             [[ $1 = -g ]] && update_with_pacman_wrapper && update_with_flatpak;
-            after_backup && echo -e "${IGREEN}after-backup complete${NC}" && sleep 3s && shutdown now ;;
+            after_backup && echo -e "${IGREEN}after-backup complete${NC}" && sleep 3s && shutdown now
+            exit 0;;
         r)
             [[ $1 = -r ]] && update_with_pacman_wrapper && update_with_flatpak;
-            after_backup && echo -e "${IGREEN}after-backup complete${NC}" && sleep 3s && reboot ;;
+            after_backup && echo -e "${IGREEN}after-backup complete${NC}" && sleep 3s && reboot
+            exit 0;;
         ?)
             Help
             exit 1;;

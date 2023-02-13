@@ -13,6 +13,9 @@ Before installing, please edit the config and configure it to your liking.
 ```bash
 make install
 ```
+
+You will likely have to
+
 ## Usage
 
 ```
@@ -25,6 +28,8 @@ no flag        same as -a
 -a             updates using flatpak update and a pacman-wrapper
 -g             shutdowns the computer afterwards (needs to be the last or only option to work properly)
 -r             reboots the computer afterwards (needs to be the last or only option to work properly)
+--help         displays this message
+-P, --preview  shows a preview of which pkg's will be updates
 ```
 
 ## Contributing
