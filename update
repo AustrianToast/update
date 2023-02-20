@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # updates using a pacman-wrapper and flatpak-update with flags
-# version 1.5
+# version 1.6
 
 source "$HOME"/.config/update.conf
 
@@ -9,10 +9,10 @@ IGREEN="\033[0;92m"     # Intense Green
 IYELLOW="\033[0;93m"    # Intense Red
 NC="\033[0m"            # Text Reset
 TMP="/tmp/backup"
-DATE="$(date +%s)"
+DATE="$(date +"%Y-%m-%d %H:%M:%S")"
 PRE_BACKUP_AMOUNT="$(ls -Ub "$BACKUP_LOCATION"/ | grep -c ^before-backup)"
+POST_BACKUP_AMOUNT="$(ls -Ub "$BACKUP_LOCATION"/ | grep -c ^after-backup)"
 
-# output if wrong flag is used
 Help() {
    echo "Usage: update [OPTION]"
    echo
@@ -27,37 +27,37 @@ Help() {
    echo "-P, --preview  shows a preview of which pkg's will be updates"
 }
 
-# creates package lists, moves them into a tar, adds some other files and adds the pacman database
-# it then rsyncs the tar to the backup location
 before_backup() {
-    #if [[ $PRE_BACKUP_AMOUNT > $BACKUP_AMOUNT ]]; then
-    #    echo "yay"
-    #fi
+    if [[ $PRE_BACKUP_AMOUNT > $BACKUP_AMOUNT ]]; then
+        OLDEST_FILE="$(ls -t "$BACKUP_LOCATION" | grep before-backup | tail -1)"
+        rm "$BACKUP_LOCATION"/"$OLDEST_FILE"
+    fi
     [[ ! -d /tmp/backup ]] && mkdir /tmp/backup
     pacman -Q > "$TMP"/pacman-pre.txt
     flatpak list > "$TMP"/flatpak-pre.txt
     sudo touch /var/lib/pacman/db.lck
     tar -cJf "$TMP"/before-backup_"$DATE".tar.xz.new "$TMP"/pacman-pre.txt "$TMP"/flatpak-pre.txt /var/lib/pacman/local &> /dev/null
     sudo rm /var/lib/pacman/db.lck
-    rsync "$TMP"/before-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
+    cp "$TMP"/before-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
     rename before-backup_"$DATE".tar.xz.new before-backup_"$DATE".tar.xz "$BACKUP_LOCATION"/before-backup_"$DATE".tar.xz.new
 }
 
-# moves the package lists into a tar, it then rsyncs the tar to the backup location
 after_backup() {
+    if [[ $POST_BACKUP_AMOUNT > $BACKUP_AMOUNT ]]; then
+        OLDEST_FILE="$(ls -t "$BACKUP_LOCATION" | grep after-backup | tail -1)"
+        rm "$BACKUP_LOCATION"/"$OLDEST_FILE"
+    fi
     tar -cJf "$TMP"/after-backup_"$DATE".tar.xz.new "$TMP"/pacman-after.txt "$TMP"/flatpak-after.txt &> /dev/null
-    rsync "$TMP"/after-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
+    cp "$TMP"/after-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
     rename after-backup_"$DATE".tar.xz.new after-backup_"$DATE".tar.xz "$BACKUP_LOCATION"/after-backup_"$DATE".tar.xz.new
     rm -r /tmp/backup
 }
 
-# updates using a pacman-wrapper
 update_with_pacman_wrapper() {
 	"$PACMAN_WRAPPER"
     pacman -Q > "$TMP"/pacman-after.txt
 }
 
-# updates using flatpak-update
 update_with_flatpak() {
 	flatpak update -u --noninteractive
     flatpak list > "$TMP"/flatpak-after.txt
