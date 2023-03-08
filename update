@@ -32,7 +32,7 @@ before_backup() {
         OLDEST_FILE="$(ls -t "$BACKUP_LOCATION" | grep before-backup | tail -1)"
         rm "$BACKUP_LOCATION"/"$OLDEST_FILE"
     fi
-    rm -r "$TMP"
+    rm -r "$TMP" &> /dev/null
     mkdir "$TMP" && mkdir "$TMP"/before-backup_"$DATE" && mkdir "$TMP"/after-backup_"$DATE"
     pacman -Q > "$TMP"/before-backup_"$DATE"/pacman-pre.txt
     [[ -f /usr/bin/flatpak ]] && flatpak list > "$TMP"/before-backup_"$DATE"/flatpak-pre.txt
