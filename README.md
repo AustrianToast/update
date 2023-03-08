@@ -22,7 +22,7 @@ You will likely have to
 Usage: update [OPTION]
 
 options:
-no flag        same as -a
+no flag        same as -p
 -f             updates using flatpak update only
 -p             updates using a pacman-wrapper only
 -a             updates using flatpak update and a pacman-wrapper

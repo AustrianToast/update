@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # updates using a pacman-wrapper and flatpak-update with flags
-# version 1.6
+# version 1.7
 
 source "$HOME"/.config/update.conf
 
 IGREEN="\033[0;92m"     # Intense Green
 IYELLOW="\033[0;93m"    # Intense Red
 NC="\033[0m"            # Text Reset
-TMP="/tmp/backup"
+TMP="/tmp/update"
 DATE="$(date +"%Y-%m-%d %H:%M:%S")"
 PRE_BACKUP_AMOUNT="$(ls -Ub "$BACKUP_LOCATION"/ | grep -c ^before-backup)"
 POST_BACKUP_AMOUNT="$(ls -Ub "$BACKUP_LOCATION"/ | grep -c ^after-backup)"
@@ -17,7 +17,7 @@ Help() {
    echo "Usage: update [OPTION]"
    echo
    echo "options:"
-   echo "no flag        same as -a"
+   echo "no flag        same as -p"
    echo "-f             updates using flatpak update only"
    echo "-p             updates using a pacman-wrapper only"
    echo "-a             updates using flatpak update and a pacman-wrapper"
@@ -32,11 +32,12 @@ before_backup() {
         OLDEST_FILE="$(ls -t "$BACKUP_LOCATION" | grep before-backup | tail -1)"
         rm "$BACKUP_LOCATION"/"$OLDEST_FILE"
     fi
-    [[ ! -d /tmp/backup ]] && mkdir /tmp/backup
-    pacman -Q > "$TMP"/pacman-pre.txt
-    flatpak list > "$TMP"/flatpak-pre.txt
+    rm -r "$TMP"
+    mkdir "$TMP" && mkdir "$TMP"/before-backup_"$DATE" && mkdir "$TMP"/after-backup_"$DATE"
+    pacman -Q > "$TMP"/before-backup_"$DATE"/pacman-pre.txt
+    [[ -f /usr/bin/flatpak ]] && flatpak list > "$TMP"/before-backup_"$DATE"/flatpak-pre.txt
     sudo touch /var/lib/pacman/db.lck
-    tar -cJf "$TMP"/before-backup_"$DATE".tar.xz.new "$TMP"/pacman-pre.txt "$TMP"/flatpak-pre.txt /var/lib/pacman/local &> /dev/null
+    tar -cJf "$TMP"/before-backup_"$DATE".tar.xz.new "$TMP"/before-backup_"$DATE" /var/lib/pacman/local &> /dev/null
     sudo rm /var/lib/pacman/db.lck
     cp "$TMP"/before-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
     rename before-backup_"$DATE".tar.xz.new before-backup_"$DATE".tar.xz "$BACKUP_LOCATION"/before-backup_"$DATE".tar.xz.new
@@ -47,20 +48,20 @@ after_backup() {
         OLDEST_FILE="$(ls -t "$BACKUP_LOCATION" | grep after-backup | tail -1)"
         rm "$BACKUP_LOCATION"/"$OLDEST_FILE"
     fi
-    tar -cJf "$TMP"/after-backup_"$DATE".tar.xz.new "$TMP"/pacman-after.txt "$TMP"/flatpak-after.txt &> /dev/null
+    tar -cJf "$TMP"/after-backup_"$DATE".tar.xz.new "$TMP"/after-backup_"$DATE" &> /dev/null
     cp "$TMP"/after-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
     rename after-backup_"$DATE".tar.xz.new after-backup_"$DATE".tar.xz "$BACKUP_LOCATION"/after-backup_"$DATE".tar.xz.new
-    rm -r /tmp/backup
+    rm -r "$TMP"
 }
 
 update_with_pacman_wrapper() {
 	"$PACMAN_WRAPPER"
-    pacman -Q > "$TMP"/pacman-after.txt
+    pacman -Q > "$TMP"/after-backup_"$DATE"/pacman-after.txt
 }
 
 update_with_flatpak() {
 	flatpak update -u --noninteractive
-    flatpak list > "$TMP"/flatpak-after.txt
+    flatpak list > "$TMP"/after-backup_"$DATE"/flatpak-after.txt
 }
 
 [[ $1 = --help ]] && Help && exit 0
@@ -75,7 +76,7 @@ done
 
 before_backup && echo -e "${IGREEN}pre-backup complete${NC}"
 
-[[ -z $1 ]] && update_with_pacman_wrapper && update_with_flatpak;
+[[ -z $1 ]] && update_with_pacman_wrapper;
 while getopts 'fpagr' OPTIONS; do
     case "$OPTIONS" in
         f)
@@ -85,11 +86,11 @@ while getopts 'fpagr' OPTIONS; do
         a)
             update_with_pacman_wrapper; update_with_flatpak ;;
         g)
-            [[ $1 = -g ]] && update_with_pacman_wrapper && update_with_flatpak;
+            [[ $1 = -g ]] && update_with_pacman_wrapper; update_with_flatpak
             after_backup && echo -e "${IGREEN}after-backup complete${NC}" && sleep 3s && shutdown now
             exit 0;;
         r)
-            [[ $1 = -r ]] && update_with_pacman_wrapper && update_with_flatpak;
+            [[ $1 = -r ]] && update_with_pacman_wrapper; update_with_flatpak
             after_backup && echo -e "${IGREEN}after-backup complete${NC}" && sleep 3s && reboot
             exit 0;;
         ?)
