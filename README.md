@@ -14,8 +14,6 @@ Before installing, please edit the config and configure it to your liking.
 make install
 ```
 
-You will likely have to
-
 ## Usage
 
 ```
