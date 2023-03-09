@@ -86,11 +86,11 @@ while getopts 'fpagr' OPTIONS; do
         a)
             update_with_pacman_wrapper; update_with_flatpak ;;
         g)
-            [[ $1 = -g ]] && update_with_pacman_wrapper; update_with_flatpak
+            [[ $1 = -g ]] && update_with_pacman_wrapper
             after_backup && echo -e "${IGREEN}after-backup complete${NC}" && sleep 3s && shutdown now
             exit 0;;
         r)
-            [[ $1 = -r ]] && update_with_pacman_wrapper; update_with_flatpak
+            [[ $1 = -r ]] && update_with_pacman_wrapper
             after_backup && echo -e "${IGREEN}after-backup complete${NC}" && sleep 3s && reboot
             exit 0;;
         ?)
