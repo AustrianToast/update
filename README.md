@@ -10,8 +10,13 @@ git clone https://github.com/AustrianToast/update.git && cd update
 
 Before installing, please edit the config and configure it to your liking.
 
+Then install using
 ```bash
 make install
+```
+or
+```bash
+just install
 ```
 
 ## Usage
