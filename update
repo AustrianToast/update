@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/usr/bin/bash
 
 # updates using a pacman-wrapper and flatpak-update with flags
-# version 1.8
 
 source "$HOME"/.config/update.conf
 
+VER="1.9"
 IGREEN="\033[0;92m"     # Intense Green
 IYELLOW="\033[0;93m"    # Intense Red
 NC="\033[0m"            # Text Reset
@@ -12,6 +12,9 @@ TMP="/tmp/update"
 DATE="$(date +"%Y-%m-%d %H:%M:%S")"
 PRE_BACKUP_AMOUNT="$(ls -Ub "$BACKUP_LOCATION"/ | grep -c ^before-backup)"
 POST_BACKUP_AMOUNT="$(ls -Ub "$BACKUP_LOCATION"/ | grep -c ^after-backup)"
+FINAL_COMMAND=""
+
+trap interrupt_function INT
 
 Help() {
    echo "Usage: update [OPTION]"
@@ -21,8 +24,8 @@ Help() {
    echo "-f             updates using flatpak update only"
    echo "-p             updates using a pacman-wrapper only"
    echo "-a             updates using flatpak update and a pacman-wrapper"
-   echo "-g             shutdowns the computer afterwards (needs to be the last or only option to work properly)"
-   echo "-r             reboots the computer afterwards (needs to be the last or only option to work properly)"
+   echo "-g             shutdowns the computer afterwards"
+   echo "-r             reboots the computer afterwards"
    echo "--help         displays this message"
    echo "-P, --preview  shows a preview of which pkg's can be updated"
 }
@@ -62,7 +65,6 @@ after_backup() {
     tar -cJf "$TMP"/after-backup_"$DATE".tar.xz.new "$TMP"/after-backup_"$DATE" &> /dev/null
     cp "$TMP"/after-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
     rename after-backup_"$DATE".tar.xz.new after-backup_"$DATE".tar.xz "$BACKUP_LOCATION"/after-backup_"$DATE".tar.xz.new
-    rm -r "$TMP"
 }
 
 update_with_pacman_wrapper() {
@@ -77,26 +79,55 @@ update_with_flatpak() {
     flatpak list > "$TMP"/after-backup_"$DATE"/flatpak-after.txt
 }
 
-[[ $1 = --help ]] && Help && exit 0
-[[ $1 = --preview || $1 = -P ]] && sudo pacman -Sy &> /dev/null && sudo pacman -Qu && exit 0
+interrupt_function() {
+    echo "Interrupt has been detected"
+    sudo rm /var/lib/pacman/db.lck &> /dev/null
+    rm -r "$TMP" &> /dev/null
+    exit 1
+}
 
-[[ -z $1 ]] && update_with_pacman_wrapper;
-while getopts 'fpagr' OPTIONS; do
-    case "$OPTIONS" in
-        f)
-            update_with_flatpak ;;
-        p)
-            update_with_pacman_wrapper ;;
-        a)
-            update_with_flatpak; update_with_pacman_wrapper ;;
-        g)
-            [[ $1 = -g ]] && update_with_pacman_wrapper
-            sleep 3s && shutdown now && exit 0;;
-        r)
-            [[ $1 = -r ]] && update_with_pacman_wrapper
-            sleep 3s && reboot && exit 0;;
+final() {
+    rm -r "$TMP" &> /dev/null
+    [[ $FINAL_COMMAND ]] && sleep 3s && $FINAL_COMMAND && exit 0
+}
+
+[[ $1 ]] || update_with_pacman_wrapper
+if [[ ${1:0:2} = -- ]]; then
+    case "${1:2}" in
+        help)
+            Help && exit 0;;
+        preview)
+            sudo pacman -Sy &> /dev/null && sudo pacman -Qu && exit 0;;
+        version)
+            echo "$VER" && exit 0;;
         ?)
-            Help
-            exit 1;;
+            Help && exit 1;;
     esac
-done
+else
+    while getopts 'fpagr' OPTIONS; do
+        case $OPTIONS in
+            P)
+                sudo pacman -Sy &> /dev/null && sudo pacman -Qu && exit 0;;
+            f)
+                update_with_flatpak;;
+            p)
+                update_with_pacman_wrapper ;;
+            a)
+                update_with_flatpak; update_with_pacman_wrapper ;;
+            g)
+                [[ $1 = -g ]] && update_with_pacman_wrapper
+                FINAL_COMMAND="shutdown now" ;;
+            r)
+                [[ $1 = -r ]] && update_with_pacman_wrapper
+                FINAL_COMMAND="reboot" ;;
+            h) 
+                Help && exit 0;;
+            V)
+                echo "$VER" && exit 0;;
+            ?)
+                Help && exit 1;;
+        esac
+    done
+fi
+
+final
