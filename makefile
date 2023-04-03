@@ -1,4 +1,4 @@
-VER = "v1.9"
+VER = "v2.0.0"
 
 install:
 	@echo "==> Installing update $(VER) into /usr/local/bin"
