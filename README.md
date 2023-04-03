@@ -18,7 +18,6 @@ or
 ```bash
 just install
 ```
-=======
 
 ## Usage
 
