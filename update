@@ -4,7 +4,7 @@
 
 source "$HOME"/.config/update.conf
 
-VER="2.0.1"
+VER="2.0.2"
 IGREEN="\033[0;92m"     # Intense Green
 IYELLOW="\033[0;93m"    # Intense Red
 NC="\033[0m"            # Text Reset
@@ -15,6 +15,13 @@ POST_BACKUP_AMOUNT="$(ls -Ub "$BACKUP_LOCATION"/ | grep -c ^after-backup)"
 FINAL_COMMAND=""
 
 trap interrupt_function INT
+
+interrupt_function() {
+    echo "Interrupt has been detected"
+    sudo rm /var/lib/pacman/db.lck &> /dev/null
+    rm -r "$TMP" &> /dev/null
+    exit 1
+}
 
 Help() {
    echo "Usage: update [OPTION]"
@@ -79,46 +86,41 @@ update_with_flatpak() {
     flatpak list > "$TMP"/after-backup_"$DATE"/flatpak-after.txt
 }
 
-interrupt_function() {
-    echo "Interrupt has been detected"
-    sudo rm /var/lib/pacman/db.lck &> /dev/null
-    rm -r "$TMP" &> /dev/null
-    exit 1
-}
-
 [[ -z $1 ]] && before_backup && echo -e "${IGREEN}pre-backup complete${NC}" && update_with_pacman_wrapper
+
 if [[ ${1:0:2} = -- ]]; then
     case "${1:2}" in
         help)
-            Help && exit 0;;
+            Help ;;
         preview)
-            sudo pacman -Sy &> /dev/null && sudo pacman -Qu && exit 0;;
+            sudo pacman -Sy &> /dev/null && sudo pacman -Qu ;;
         version)
-            echo "$VER" && exit 0;;
+            echo "$VER" ;;
         ?)
             Help && exit 1;;
     esac
-else
-    before_backup && echo -e "${IGREEN}pre-backup complete${NC}"
-
-    while getopts 'fpagr' OPTIONS; do
-        case $OPTIONS in
-            f)
-                update_with_flatpak;;
-            p)
-                update_with_pacman_wrapper ;;
-            a)
-                update_with_pacman_wrapper; update_with_flatpak ;;
-            g)
-                [[ $1 = -g ]] && update_with_pacman_wrapper
-                FINAL_COMMAND="shutdown now" ;;
-            r)
-                [[ $1 = -r ]] && update_with_pacman_wrapper
-                FINAL_COMMAND="reboot" ;;
-            ?)
-                Help && exit 1;;
-        esac
-    done
+    exit 0
 fi
+
+before_backup && echo -e "${IGREEN}pre-backup complete${NC}"
+
+while getopts 'fpagr' OPTIONS; do
+    case $OPTIONS in
+        f)
+            update_with_flatpak;;
+        p)
+            update_with_pacman_wrapper ;;
+        a)
+            update_with_pacman_wrapper; update_with_flatpak ;;
+        g)
+            [[ $1 = -g ]] && update_with_pacman_wrapper
+            FINAL_COMMAND="shutdown now" ;;
+        r)
+            [[ $1 = -r ]] && update_with_pacman_wrapper
+            FINAL_COMMAND="reboot" ;;
+        ?)
+            Help && exit 1;;
+    esac
+done
 
 after_backup && echo -e "${IGREEN}after-backup complete${NC}"
