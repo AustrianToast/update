@@ -32,7 +32,7 @@ no flag        same as -p
 -g             shutdowns the computer afterwards
 -r             reboots the computer afterwards
 --help         displays this message
---preview  shows a preview of which pkg's will be updates
+--preview      shows a preview of which pkg's will be updates
 --version      prints out the version number
 ```
 
