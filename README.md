@@ -18,7 +18,6 @@ or
 ```bash
 just install
 ```
-=======
 
 ## Usage
 
@@ -30,10 +29,11 @@ no flag        same as -p
 -f             updates using flatpak update only
 -p             updates using a pacman-wrapper only
 -a             updates using flatpak update and a pacman-wrapper
--g             shutdowns the computer afterwards (needs to be the last or only option to work properly)
--r             reboots the computer afterwards (needs to be the last or only option to work properly)
+-g             shutdowns the computer afterwards
+-r             reboots the computer afterwards
 --help         displays this message
--P, --preview  shows a preview of which pkg's will be updates
+--preview      shows a preview of which pkg's will be updates
+--version      prints out the version number
 ```
 
 ## Contributing

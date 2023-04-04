@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/usr/bin/bash
 
 # updates using a pacman-wrapper and flatpak-update with flags
-# version 1.7
 
 source "$HOME"/.config/update.conf
 
+VER="2.0.3"
 IGREEN="\033[0;92m"     # Intense Green
 IYELLOW="\033[0;93m"    # Intense Red
 NC="\033[0m"            # Text Reset
@@ -12,6 +12,16 @@ TMP="/tmp/update"
 DATE="$(date +"%Y-%m-%d %H:%M:%S")"
 PRE_BACKUP_AMOUNT="$(ls -Ub "$BACKUP_LOCATION"/ | grep -c ^before-backup)"
 POST_BACKUP_AMOUNT="$(ls -Ub "$BACKUP_LOCATION"/ | grep -c ^after-backup)"
+FINAL_COMMAND=""
+
+trap interrupt_function INT
+
+interrupt_function() {
+    echo "Interrupt has been detected"
+    sudo rm /var/lib/pacman/db.lck &> /dev/null
+    rm -r "$TMP" &> /dev/null
+    exit 1
+}
 
 Help() {
    echo "Usage: update [OPTION]"
@@ -21,17 +31,32 @@ Help() {
    echo "-f             updates using flatpak update only"
    echo "-p             updates using a pacman-wrapper only"
    echo "-a             updates using flatpak update and a pacman-wrapper"
-   echo "-g             shutdowns the computer afterwards (needs to be the last or only option to work properly)"
-   echo "-r             reboots the computer afterwards (needs to be the last or only option to work properly)"
+   echo "-g             shutdowns the computer afterwards"
+   echo "-r             reboots the computer afterwards"
    echo "--help         displays this message"
-   echo "-P, --preview  shows a preview of which pkg's will be updates"
+   echo "--preview      shows a preview of which pkg's can be updated"
+   echo "--version      prints out the version number"
+}
+
+check_for_dblck() {
+    if [ -f /var/lib/pacman/db.lck ]; then {
+        echo -e "${IYELLOW}->${NC} /var/lib/pacman/db.lck exists"
+        echo -e "${IYELLOW}->${NC} there might be another instance of pacman running. exiting..."
+        exit 1
+    }
+    fi
+}
+
+delete_oldest_backup() {
+    if [[ $1 > $BACKUP_AMOUNT ]]; then
+        OLDEST_FILE="$(ls -t "$BACKUP_LOCATION" | grep $2 | tail -1)"
+        rm "$BACKUP_LOCATION"/"$OLDEST_FILE"
+    fi
 }
 
 before_backup() {
-    if [[ $PRE_BACKUP_AMOUNT > $BACKUP_AMOUNT ]]; then
-        OLDEST_FILE="$(ls -t "$BACKUP_LOCATION" | grep before-backup | tail -1)"
-        rm "$BACKUP_LOCATION"/"$OLDEST_FILE"
-    fi
+    check_for_dblck
+    delete_oldest_backup $PRE_BACKUP_AMOUNT before-backup
     rm -r "$TMP" &> /dev/null
     mkdir "$TMP" && mkdir "$TMP"/before-backup_"$DATE" && mkdir "$TMP"/after-backup_"$DATE"
     pacman -Q > "$TMP"/before-backup_"$DATE"/pacman-pre.txt
@@ -44,14 +69,11 @@ before_backup() {
 }
 
 after_backup() {
-    if [[ $POST_BACKUP_AMOUNT > $BACKUP_AMOUNT ]]; then
-        OLDEST_FILE="$(ls -t "$BACKUP_LOCATION" | grep after-backup | tail -1)"
-        rm "$BACKUP_LOCATION"/"$OLDEST_FILE"
-    fi
+    delete_oldest_backup $POST_BACKUP_AMOUNT after-backup
     tar -cJf "$TMP"/after-backup_"$DATE".tar.xz.new "$TMP"/after-backup_"$DATE" &> /dev/null
     cp "$TMP"/after-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
     rename after-backup_"$DATE".tar.xz.new after-backup_"$DATE".tar.xz "$BACKUP_LOCATION"/after-backup_"$DATE".tar.xz.new
-    rm -r "$TMP"
+    $FINAL_COMMAND
 }
 
 update_with_pacman_wrapper() {
@@ -64,21 +86,25 @@ update_with_flatpak() {
     flatpak list > "$TMP"/after-backup_"$DATE"/flatpak-after.txt
 }
 
-[[ $1 = --help ]] && Help && exit 0
-[[ $1 = --preview || $1 = -P ]] && sudo pacman -Sy &> /dev/null && sudo pacman -Qu && exit 0
-
-while [ -f /var/lib/pacman/db.lck ]; do {
-    echo -e "${IYELLOW}->${NC} /var/lib/pacman/db.lck exists"
-    echo -e "${IYELLOW}->${NC} there might be another instance of pacman running. exiting..."
-    exit 1
-}
-done
+if [[ ${1:0:2} = -- ]]; then
+    case "${1:2}" in
+        help)
+            Help ;;
+        preview)
+            sudo pacman -Sy &> /dev/null && sudo pacman -Qu ;;
+        version)
+            echo "$VER" ;;
+        ?)
+            Help && exit 1;;
+    esac
+    exit 0
+fi
 
 before_backup && echo -e "${IGREEN}pre-backup complete${NC}"
 
-[[ -z $1 ]] && update_with_pacman_wrapper;
+[[ $1 ]] || update_with_pacman_wrapper
 while getopts 'fpagr' OPTIONS; do
-    case "$OPTIONS" in
+    case $OPTIONS in
         f)
             update_with_flatpak ;;
         p)
@@ -87,15 +113,12 @@ while getopts 'fpagr' OPTIONS; do
             update_with_pacman_wrapper; update_with_flatpak ;;
         g)
             [[ $1 = -g ]] && update_with_pacman_wrapper
-            after_backup && echo -e "${IGREEN}after-backup complete${NC}" && sleep 3s && shutdown now
-            exit 0;;
+            FINAL_COMMAND="shutdown now" ;;
         r)
             [[ $1 = -r ]] && update_with_pacman_wrapper
-            after_backup && echo -e "${IGREEN}after-backup complete${NC}" && sleep 3s && reboot
-            exit 0;;
+            FINAL_COMMAND="reboot" ;;
         ?)
-            Help
-            exit 1;;
+            Help && exit 1;;
     esac
 done
 
