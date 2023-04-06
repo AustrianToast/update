@@ -4,7 +4,7 @@
 
 source "$HOME"/.config/update.conf
 
-VER="2.0.3"
+VER="2.0.4"
 IGREEN="\033[0;92m"     # Intense Green
 IYELLOW="\033[0;93m"    # Intense Red
 NC="\033[0m"            # Text Reset
@@ -73,7 +73,6 @@ after_backup() {
     tar -cJf "$TMP"/after-backup_"$DATE".tar.xz.new "$TMP"/after-backup_"$DATE" &> /dev/null
     cp "$TMP"/after-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
     rename after-backup_"$DATE".tar.xz.new after-backup_"$DATE".tar.xz "$BACKUP_LOCATION"/after-backup_"$DATE".tar.xz.new
-    $FINAL_COMMAND
 }
 
 update_with_pacman_wrapper() {
@@ -123,3 +122,4 @@ while getopts 'fpagr' OPTIONS; do
 done
 
 after_backup && echo -e "${IGREEN}after-backup complete${NC}"
+$FINAL_COMMAND; exit 0
