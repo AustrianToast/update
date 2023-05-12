@@ -4,7 +4,7 @@
 
 source "$HOME"/.config/update.conf
 
-VER="2.0.4"
+VER="2.0.5"
 IGREEN="\033[0;92m"     # Intense Green
 IYELLOW="\033[0;93m"    # Intense Red
 NC="\033[0m"            # Text Reset
@@ -18,8 +18,8 @@ trap interrupt_function INT
 
 interrupt_function() {
     echo "Interrupt has been detected"
-    sudo rm /var/lib/pacman/db.lck &> /dev/null
-    rm -r "$TMP" &> /dev/null
+    sudo rm /var/lib/pacman/db.lck > /dev/null 2>&1
+    rm -r "$TMP" > /dev/null 2>&1
     exit 1
 }
 
@@ -57,27 +57,27 @@ delete_oldest_backup() {
 before_backup() {
     check_for_dblck
     delete_oldest_backup $PRE_BACKUP_AMOUNT before-backup
-    rm -r "$TMP" &> /dev/null
+    rm -r "$TMP" > /dev/null 2>&1
     mkdir "$TMP" && mkdir "$TMP"/before-backup_"$DATE" && mkdir "$TMP"/after-backup_"$DATE"
-    pacman -Q > "$TMP"/before-backup_"$DATE"/pacman-pre.txt
+    pacman -Qq > "$TMP"/before-backup_"$DATE"/pacman-pre.txt
     [[ -f /usr/bin/flatpak ]] && flatpak list > "$TMP"/before-backup_"$DATE"/flatpak-pre.txt
     sudo touch /var/lib/pacman/db.lck
-    tar -cJf "$TMP"/before-backup_"$DATE".tar.xz.new "$TMP"/before-backup_"$DATE" /var/lib/pacman/local &> /dev/null
+    tar -cJf "$TMP"/before-backup_"$DATE".tar.xz.new "$TMP"/before-backup_"$DATE" /var/lib/pacman/local > /dev/null 2>&1
     sudo rm /var/lib/pacman/db.lck
     cp "$TMP"/before-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
-    rename before-backup_"$DATE".tar.xz.new before-backup_"$DATE".tar.xz "$BACKUP_LOCATION"/before-backup_"$DATE".tar.xz.new
+    rename before-backup_"$DATE".tar.xz.new before-backup_"$DATE".tar.xz "$BACKUP_LOCATION"/before-backup_"$DATE".tar.xz.new > /dev/null 2>&1
 }
 
 after_backup() {
     delete_oldest_backup $POST_BACKUP_AMOUNT after-backup
-    tar -cJf "$TMP"/after-backup_"$DATE".tar.xz.new "$TMP"/after-backup_"$DATE" &> /dev/null
+    tar -cJf "$TMP"/after-backup_"$DATE".tar.xz.new "$TMP"/after-backup_"$DATE" > /dev/null 2>&1
     cp "$TMP"/after-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
     rename after-backup_"$DATE".tar.xz.new after-backup_"$DATE".tar.xz "$BACKUP_LOCATION"/after-backup_"$DATE".tar.xz.new
 }
 
 update_with_pacman_wrapper() {
-	"$PACMAN_WRAPPER"
-    pacman -Q > "$TMP"/after-backup_"$DATE"/pacman-after.txt
+    "$PACMAN_WRAPPER"
+    pacman -Qq > "$TMP"/after-backup_"$DATE"/pacman-after.txt
 }
 
 update_with_flatpak() {
@@ -90,7 +90,7 @@ if [[ ${1:0:2} = -- ]]; then
         help)
             Help ;;
         preview)
-            sudo pacman -Sy &> /dev/null && sudo pacman -Qu ;;
+            sudo pacman -Sy > /dev/null 2>&1 && sudo pacman -Qu ;;
         version)
             echo "$VER" ;;
         ?)
