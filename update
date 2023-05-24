@@ -4,9 +4,9 @@
 
 source "$HOME"/.config/update.conf
 
-VER="2.0.5"
+VER="2.0.7"
 IGREEN="\033[0;92m"     # Intense Green
-IYELLOW="\033[0;93m"    # Intense Red
+IYELLOW="\033[0;93m"    # Intense Yellow
 NC="\033[0m"            # Text Reset
 TMP="/tmp/update"
 DATE="$(date +"%Y-%m-%d %H:%M:%S")"
@@ -48,7 +48,7 @@ check_for_dblck() {
 }
 
 delete_oldest_backup() {
-    if [[ $1 > $BACKUP_AMOUNT ]]; then
+    if [[ $1 -ge $BACKUP_AMOUNT ]]; then
         OLDEST_FILE="$(ls -t "$BACKUP_LOCATION" | grep $2 | tail -1)"
         rm "$BACKUP_LOCATION"/"$OLDEST_FILE"
     fi
@@ -60,6 +60,7 @@ before_backup() {
     rm -r "$TMP" > /dev/null 2>&1
     mkdir "$TMP" && mkdir "$TMP"/before-backup_"$DATE" && mkdir "$TMP"/after-backup_"$DATE"
     pacman -Qq > "$TMP"/before-backup_"$DATE"/pacman-pre.txt
+    [[ -f "$TMP"/before-backup_"$DATE"/pacman-pre.txt ]] || echo -e "$IYELLOW backup was unsuccessful" || exit 1
     [[ -f /usr/bin/flatpak ]] && flatpak list > "$TMP"/before-backup_"$DATE"/flatpak-pre.txt
     sudo touch /var/lib/pacman/db.lck
     tar -cJf "$TMP"/before-backup_"$DATE".tar.xz.new "$TMP"/before-backup_"$DATE" /var/lib/pacman/local > /dev/null 2>&1
@@ -93,6 +94,8 @@ if [[ ${1:0:2} = -- ]]; then
             sudo pacman -Sy > /dev/null 2>&1 && sudo pacman -Qu ;;
         version)
             echo "$VER" ;;
+        backup)
+            before_backup ;;
         ?)
             Help && exit 1;;
     esac
