@@ -36,6 +36,7 @@ Help() {
    echo "--help         displays this message"
    echo "--preview      shows a preview of which pkg's can be updated"
    echo "--version      prints out the version number"
+   echo "--backup       just does the pre-backup without updating"
 }
 
 check_for_dblck() {
