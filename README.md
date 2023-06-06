@@ -34,6 +34,7 @@ no flag        same as -p
 --help         displays this message
 --preview      shows a preview of which pkg's will be updates
 --version      prints out the version number
+--backup       just does the before backup without updating
 ```
 
 ## Contributing
