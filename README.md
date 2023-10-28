@@ -1,20 +1,27 @@
 # Update
 
-Update script written in bash for Arch. Keeps all your pacman and aur packages as well as your flatpaks up to date with one simple script. It also backups a list of all your pacman/aur pkg's and flatpaks. As well as your fstab and the makepkg.conf to the location that you specify in the config.
+Update script written in bash for Arch Linux only. Keeps all your pacman and aur packages as well as your flatpaks up to date with one simple script. It also backups a list of all your pacman and aur packages and flatpaks.
+
+## Requirements
+
+Here is what is required. 
+```bash
+pacman -S just
+```
+It also technically requires sudo, but if you use something else, then just have create softlink for this script to work.<br/>
+Doing that looks like this.
+```bash
+ln -s /usr/bin/your_program /usr/bin/sudo
+```
 
 ## Installation 
 
 ```bash
-git clone https://github.com/AustrianToast/update.git && cd update
+git clone https://gitea.hopeless-cloud.xyz/AustrianToast/update.git && cd update
 ```
 
-Before installing, please edit the config and configure it to your liking.
-
+Before installing, please edit the config and configure it to your liking.<br/>
 Then install using
-```bash
-make install
-```
-or
 ```bash
 just install
 ```
