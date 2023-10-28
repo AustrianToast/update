@@ -1,6 +1,6 @@
 # Update
 
-Update script written in bash for Arch Linux only. Keeps all your pacman and aur packages as well as your flatpaks up to date with one simple script. It also backups a list of all your pacman and aur packages and flatpaks.
+Update script written in Bash for Arch Linux only. Keeps all your pacman and aur packages as well as your flatpaks up to date with one simple script. It also backups a list of all your pacman and aur packages and flatpaks.
 
 ## Requirements
 
@@ -9,7 +9,7 @@ Here is what is required.
 pacman -S just
 ```
 It also technically requires sudo, but if you use something else, then just create a softlink for this script to work.<br/>
-Doing that looks like this.
+Doing that would look like this.
 ```bash
 ln -s /usr/bin/your_program /usr/bin/sudo
 ```
