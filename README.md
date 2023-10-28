@@ -8,7 +8,7 @@ Here is what is required.
 ```bash
 pacman -S just
 ```
-It also technically requires sudo, but if you use something else, then just have create softlink for this script to work.<br/>
+It also technically requires sudo, but if you use something else, then just create a softlink for this script to work.<br/>
 Doing that looks like this.
 ```bash
 ln -s /usr/bin/your_program /usr/bin/sudo
