@@ -1,18 +1,14 @@
 #!/usr/bin/bash
 
-# updates using a pacman-wrapper and flatpak-update with flags
-
 source "$HOME"/.config/update.conf || exit 1
-[[ ! -d $BACKUP_LOCATION ]] && mkdir --parents $BACKUP_LOCATION
+[[ ! -d $BACKUP_LOCATION ]] && mkdir --parents "$BACKUP_LOCATION"
 
-VER="2.0.8"
+VERSION="2.0.9"
 IGREEN="\033[0;92m"     # Intense Green
 IYELLOW="\033[0;93m"    # Intense Yellow
-NC="\033[0m"            # Text Reset
+NO_COLOR="\033[0m"      # Text Reset
 TMP="/tmp/update"
-DATE="$(date +"%Y-%m-%d %H:%M:%S")"
-PRE_BACKUP_AMOUNT="$(ls -Ub "$BACKUP_LOCATION" | grep -c before-backup)"
-POST_BACKUP_AMOUNT="$(ls -Ub "$BACKUP_LOCATION" | grep -c after-backup)"
+DATE="$(date +"%Y-%m-%dT%H:%M:%S%:z")"  # RFC 3339 date-time
 FINAL_COMMAND=""
 
 trap interrupt_function INT
@@ -20,11 +16,11 @@ trap interrupt_function INT
 interrupt_function() {
     echo "Interrupt has been detected"
     [[ -f /var/lib/pacman/db.lck ]] && sudo rm /var/lib/pacman/db.lck > /dev/null 2>&1
-    rm -r "$TMP" > /dev/null 2>&1
+    rm --recursive "$TMP" > /dev/null 2>&1
     exit 1
 }
 
-Help() {
+help() {
    echo "Usage: update [OPTION]"
    echo
    echo "options:"
@@ -37,44 +33,44 @@ Help() {
    echo "--help         displays this message"
    echo "--preview      shows a preview of which pkg's can be updated"
    echo "--version      prints out the version number"
-   echo "--backup       just does the pre-backup without updating"
+   echo "--backup       just does the before-backup without updating"
 }
 
-check_for_dblck() {
+lock_pacman_db() {
     if [ -f /var/lib/pacman/db.lck ]; then
-        echo -e "${IYELLOW}->${NC} /var/lib/pacman/db.lck exists"
-        echo -e "${IYELLOW}->${NC} there might be another instance of pacman running. exiting..."
+        echo -e "${IYELLOW}->${NO_COLOR} /var/lib/pacman/db.lck exists"
+        echo -e "${IYELLOW}->${NO_COLOR} there might be another instance of pacman running. exiting..."
         exit 1
     fi
+    sudo touch /var/lib/pacman/db.lck
 }
 
 delete_oldest_backup() {
-    if [[ $1 -ge $BACKUP_AMOUNT ]]; then
-        OLDEST_FILE="$(ls -t "$BACKUP_LOCATION" | grep $2 | tail -1)"
+    if [[ $(ls -Ub "$BACKUP_LOCATION" | grep -c $1) -ge $BACKUP_AMOUNT ]]; then
+        OLDEST_FILE="$(ls -rt1 $BACKUP_LOCATION | grep $1 | head -1)"   # sorts by time (oldes first) and gets the first item
         rm "$BACKUP_LOCATION"/"$OLDEST_FILE"
     fi
 }
 
 before_backup() {
-    check_for_dblck
-    delete_oldest_backup $PRE_BACKUP_AMOUNT before-backup
-    rm -r "$TMP" > /dev/null 2>&1
-    mkdir "$TMP" && mkdir "$TMP"/before-backup_"$DATE" && mkdir "$TMP"/after-backup_"$DATE"
-    pacman -Q > "$TMP"/before-backup_"$DATE"/pacman-pre.txt
-    [[ -f "$TMP"/before-backup_"$DATE"/pacman-pre.txt ]] || echo -e "$IYELLOW backup was unsuccessful" || exit 1
-    [[ -f /usr/bin/flatpak ]] && flatpak list > "$TMP"/before-backup_"$DATE"/flatpak-pre.txt
-    sudo touch /var/lib/pacman/db.lck
-    tar -cJf "$TMP"/before-backup_"$DATE".tar.xz.new "$TMP"/before-backup_"$DATE" /var/lib/pacman/local > /dev/null 2>&1
+    lock_pacman_db
+    delete_oldest_backup before-backup
+    [[ -d $TMP ]] && rm -r "$TMP"
+    mkdir --parents "$TMP"/before-backup_"$DATE" "$TMP"/after-backup_"$DATE"
+    pacman -Q > "$TMP"/before-backup_"$DATE"/pacman-before.txt
+    [[ -f /usr/bin/flatpak ]] && flatpak list --all --show-details > "$TMP"/before-backup_"$DATE"/flatpak-before.txt
+    tar --create --xz --file "$TMP"/before-backup_"$DATE".tar.xz.new "$TMP"/before-backup_"$DATE" /var/lib/pacman/local > /dev/null 2>&1    # for some reason it needs the output suppresion
     sudo rm /var/lib/pacman/db.lck
-    cp "$TMP"/before-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
-    rename before-backup_"$DATE".tar.xz.new before-backup_"$DATE".tar.xz "$BACKUP_LOCATION"/before-backup_"$DATE".tar.xz.new > /dev/null 2>&1
+    mv "$TMP"/before-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
+    mv "$BACKUP_LOCATION"/before-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"/before-backup_"$DATE".tar.xz
 }
 
 after_backup() {
-    delete_oldest_backup $POST_BACKUP_AMOUNT after-backup
-    tar -cJf "$TMP"/after-backup_"$DATE".tar.xz.new "$TMP"/after-backup_"$DATE" > /dev/null 2>&1
-    cp "$TMP"/after-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
-    rename after-backup_"$DATE".tar.xz.new after-backup_"$DATE".tar.xz "$BACKUP_LOCATION"/after-backup_"$DATE".tar.xz.new
+    delete_oldest_backup after-backup
+    tar --create --xz --file "$TMP"/after-backup_"$DATE".tar.xz.new "$TMP"/after-backup_"$DATE" > /dev/null 2>&1
+    mv "$TMP"/after-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
+    mv "$BACKUP_LOCATION"/after-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"/after-backup_"$DATE".tar.xz
+    rm --recursive "$TMP"
 }
 
 update_with_pacman_wrapper() {
@@ -83,28 +79,29 @@ update_with_pacman_wrapper() {
 }
 
 update_with_flatpak() {
-	flatpak update -u --noninteractive
-    flatpak list > "$TMP"/after-backup_"$DATE"/flatpak-after.txt
+	flatpak update --assumeyes
+    flatpak list --all --show-details > "$TMP"/after-backup_"$DATE"/flatpak-after.txt
 }
 
 if [[ ${1:0:2} = -- ]]; then
     case "${1:2}" in
         help)
-            Help ;;
+            help ;;
         preview)
-            "$PACMAN_WRAPPER" -Sy > /dev/null 2>&1
+            "$PACMAN_WRAPPER" -Sy
             "$PACMAN_WRAPPER" -Qu ;;
         version)
-            echo "$VER" ;;
+            echo "$VERSON" ;;
         backup)
-            before_backup ;;
+            before_backup
+            rm --recursive "$TMP" ;;
         ?)
-            Help && exit 1;;
+            help; exit 1;;
     esac
     exit 0
 fi
 
-before_backup && echo -e "${IGREEN}pre-backup complete${NC}"
+before_backup && echo -e "${IGREEN}pre-backup complete${NO_COLOR}"
 
 [[ $1 ]] || update_with_pacman_wrapper
 while getopts 'fpagr' OPTIONS; do
@@ -117,14 +114,14 @@ while getopts 'fpagr' OPTIONS; do
             update_with_pacman_wrapper; update_with_flatpak ;;
         g)
             [[ $1 = -g ]] && update_with_pacman_wrapper
-            FINAL_COMMAND="systemctl poweroff" ;;
+            FINAL_COMMAND="systemctl --check-inhibitors=yes poweroff" ;;
         r)
             [[ $1 = -r ]] && update_with_pacman_wrapper
-            FINAL_COMMAND="systemctl reboot" ;;
+            FINAL_COMMAND="systemctl --check-inhibitors=yes reboot" ;;
         ?)
-            Help && exit 1;;
+            help; exit 1;;
     esac
 done
 
-after_backup && echo -e "${IGREEN}after-backup complete${NC}"
+after_backup && echo -e "${IGREEN}after-backup complete${NO_COLOR}"
 $FINAL_COMMAND; exit 0
