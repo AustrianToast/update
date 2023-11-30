@@ -1,7 +1,7 @@
 install:
 	@echo "==> Installing update into /usr/local/bin"
 	@sudo install -Dm755 update /usr/local/bin/update
-	@cp update.conf ${HOME}/.config/
+	@[[ -f ${HOME}/.config/update.conf ]] || cp update.conf ${HOME}/.config/
 	@echo "==> Finished."
 
 uninstall:
