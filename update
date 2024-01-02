@@ -3,7 +3,7 @@
 source "$HOME"/.config/update.conf || exit 1
 [[ ! -d $BACKUP_LOCATION ]] && mkdir --parents "$BACKUP_LOCATION"
 
-VERSION="2.0.9"
+VERSION="2.1.0"
 IGREEN="\033[0;92m"     # Intense Green
 IYELLOW="\033[0;93m"    # Intense Yellow
 NO_COLOR="\033[0m"      # Text Reset
@@ -15,8 +15,8 @@ trap interrupt_function INT
 
 interrupt_function() {
     echo "Interrupt has been detected"
-    [[ -f /var/lib/pacman/db.lck ]] && sudo rm /var/lib/pacman/db.lck > /dev/null 2>&1
-    rm --recursive "$TMP" > /dev/null 2>&1
+    [[ -f /var/lib/pacman/db.lck ]] && sudo rm /var/lib/pacman/db.lck
+    rm --recursive "$TMP"
     exit 1
 }
 
@@ -24,7 +24,7 @@ help() {
    echo "Usage: update [OPTION]"
    echo
    echo "options:"
-   echo "no flag        same as -p"
+   echo "no option      same as -p"
    echo "-f             updates using flatpak update only"
    echo "-p             updates using a pacman-wrapper only"
    echo "-a             updates using flatpak update and a pacman-wrapper"
@@ -58,7 +58,7 @@ before_backup() {
     [[ -d $TMP ]] && rm -r "$TMP"
     mkdir --parents "$TMP"/before-backup_"$DATE" "$TMP"/after-backup_"$DATE"
     pacman -Q > "$TMP"/before-backup_"$DATE"/pacman-before.txt
-    [[ -f /usr/bin/flatpak ]] && flatpak list --all --show-details > "$TMP"/before-backup_"$DATE"/flatpak-before.txt
+    [[ -x /usr/bin/flatpak ]] && flatpak list --all --show-details > "$TMP"/before-backup_"$DATE"/flatpak-before.txt
     tar --create --xz --file "$TMP"/before-backup_"$DATE".tar.xz.new "$TMP"/before-backup_"$DATE" /var/lib/pacman/local > /dev/null 2>&1    # for some reason it needs the output suppresion
     sudo rm /var/lib/pacman/db.lck
     mv "$TMP"/before-backup_"$DATE".tar.xz.new "$BACKUP_LOCATION"
@@ -79,8 +79,10 @@ update_with_pacman_wrapper() {
 }
 
 update_with_flatpak() {
-	flatpak update --assumeyes
-    flatpak list --all --show-details > "$TMP"/after-backup_"$DATE"/flatpak-after.txt
+    if [[ -x /usr/bin/flatpak ]]; then
+        flatpak update --assumeyes
+        flatpak list --all --show-details > "$TMP"/after-backup_"$DATE"/flatpak-after.txt
+    fi
 }
 
 if [[ ${1:0:2} = -- ]]; then
@@ -89,9 +91,10 @@ if [[ ${1:0:2} = -- ]]; then
             help ;;
         preview)
             "$PACMAN_WRAPPER" -Sy
-            "$PACMAN_WRAPPER" -Qu ;;
+            "$PACMAN_WRAPPER" -Qu
+            [[ -x /usr/bin/flatpak ]] && flatpak remote-ls --updates ;;
         version)
-            echo "$VERSON" ;;
+            echo "$VERSION" ;;
         backup)
             before_backup
             rm --recursive "$TMP" ;;
@@ -103,7 +106,9 @@ fi
 
 before_backup && echo -e "${IGREEN}pre-backup complete${NO_COLOR}"
 
-[[ $1 ]] || update_with_pacman_wrapper
+if [[ -z $1 ]]; then
+update_with_pacman_wrapper; update_with_flatpak
+fi
 while getopts 'fpagr' OPTIONS; do
     case $OPTIONS in
         f)
@@ -113,10 +118,14 @@ while getopts 'fpagr' OPTIONS; do
         a)
             update_with_pacman_wrapper; update_with_flatpak ;;
         g)
-            [[ $1 = -g ]] && update_with_pacman_wrapper
+            if [ "$1" == "-g" ]; then
+                update_with_pacman_wrapper; update_with_flatpak
+            fi
             FINAL_COMMAND="systemctl --check-inhibitors=yes poweroff" ;;
         r)
-            [[ $1 = -r ]] && update_with_pacman_wrapper
+            if [ "$1" == "-r" ]; then
+                update_with_pacman_wrapper; update_with_flatpak
+            fi
             FINAL_COMMAND="systemctl --check-inhibitors=yes reboot" ;;
         ?)
             help; exit 1;;
